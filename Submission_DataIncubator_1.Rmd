@@ -1,0 +1,119 @@
+---
+title: "Data Incubator - Q1"
+author: "Lawrence Wong"
+date: "1/12/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+## Load Libraries
+
+```{r, message = FALSE, warnings = FALSE}
+
+# Main Packages
+library(tidyverse)
+library(lubridate)
+library(tidyquant)
+library(plotly)
+library(dplyr)
+library(ggpmisc)
+
+# Time Based Feature Extraction
+library(timetk)
+
+# Holidays
+library(timeDate)
+
+# Weather Data
+library(riem)
+
+# Forecasting
+library(forecast)
+library(sweep)
+
+# Machine Learning 
+library(parsnip)
+library(yardstick)
+```
+
+## Import Data
+
+```{r, message = FALSE, warnings = FALSE}
+#Data downloaded as .csv, then import
+tbl_2011 <- read_csv("C:/Users/conundd/OneDrive - JM Family Enterprises/Desktop/Playbook/LW_Time_Series_Recipe/bike_sharing/00_data/raw_data/2011-capitalbikeshare-tripdata.csv")
+tbl_2012_q1 <- read_csv("C:/Users/conundd/OneDrive - JM Family Enterprises/Desktop/Playbook/LW_Time_Series_Recipe/bike_sharing/00_data/raw_data/2012Q1-capitalbikeshare-tripdata.csv")
+tbl_2012_q2 <- read_csv("C:/Users/conundd/OneDrive - JM Family Enterprises/Desktop/Playbook/LW_Time_Series_Recipe/bike_sharing/00_data/raw_data/2012Q2-capitalbikeshare-tripdata.csv")
+tbl_2012_q3 <- read_csv("C:/Users/conundd/OneDrive - JM Family Enterprises/Desktop/Playbook/LW_Time_Series_Recipe/bike_sharing/00_data/raw_data/2012Q3-capitalbikeshare-tripdata.csv")
+tbl_2012_q4 <- read_csv("C:/Users/conundd/OneDrive - JM Family Enterprises/Desktop/Playbook/LW_Time_Series_Recipe/bike_sharing/00_data/raw_data/2012Q4-capitalbikeshare-tripdata.csv")
+
+#Merge file
+tbl_all_2011_to_2012 <- bind_rows(tbl_2011,tbl_2012_q1,tbl_2012_q2,tbl_2012_q3,tbl_2012_q4)
+```
+
+## Build New Variables & a View Table For Useful Data Analysis
+
+```{r, message = FALSE, warnings = FALSE}
+##New Variables
+#Date = Start date without the time stamp
+tbl_all_2011_to_2012$Date <- as.Date(tbl_all_2011_to_2012$`End date`)
+```
+
+```{r}
+##New View
+#tbl_count_by_date = Table that counts bike rental per day
+tbl_count_by_date <- subset(tbl_all_2011_to_2012, select = `Date`)
+tbl_count_by_date <- tbl_count_by_date %>% group_by(Date)
+tbl_count_by_date <- summarise(tbl_count_by_date, Count = n())
+tbl_count_by_date
+```
+
+## Data Visualization
+Below are three exploratory data plots demonstrating that this project is viable.
+
+## Plot 1
+```{r}
+#Plot1: Shows general trend of bike rentals with 90 day moving average trend, a common but flawed technique, over a two year period
+moving_average_table <- tbl_count_by_date %>%
+    select(Date, Count) %>%
+    mutate(moving_avg = rollmean(Count, k = 90, na.pad = TRUE, align = "right")) 
+
+vline_int <- "2012-10-01"
+
+plot1 <- moving_average_table %>%
+    select(Date, Count, moving_avg) %>%
+    fill(moving_avg, .direction = "down") %>%
+    ggplot(aes(Date, Count)) +
+    geom_vline(xintercept = ymd(vline_int), color = "red") +
+    geom_point(color = "#2c3e50") +
+    geom_line(aes(y = moving_avg), size = 1, color = "blue") +
+    theme_tq() 
+plot1
+```
+
+## Plot 2
+```{r}
+#Plot2: Shows general trend of bike rentals with a line of best fit over a two year period
+plot2 <- moving_average_table %>%
+    select(Date, Count, moving_avg) %>%
+    fill(moving_avg, .direction = "down") %>%
+    ggplot(aes(Date, Count)) +
+    geom_vline(xintercept = ymd(vline_int), color = "red") +
+    geom_point(color = "#2c3e50") +
+    geom_smooth(method = "loess", span = 0.5)
+plot2
+```
+
+## Plot 3
+```{r}
+#Plot3: Compares moving average line vs. line of best fit over a two year period
+plot3 <- moving_average_table %>%
+    select(Date, Count, moving_avg) %>%
+    fill(moving_avg, .direction = "down") %>%
+    ggplot(aes(Date, Count)) +
+    geom_vline(xintercept = ymd(vline_int), color = "red") +
+    geom_line(aes(y = moving_avg), size = 1, color = "blue") +
+    geom_point(color = "#2c3e50") +
+    geom_smooth(method = "loess", span = 0.5)
+plot3
+```
